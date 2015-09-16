@@ -1,0 +1,9 @@
+[package]
+name = "splore"
+version = "0.1.0"
+authors = ["acolley <alnessy@hotmail.com>"]
+
+[dependencies]
+glium = "0.8.7"
+image = "0.3.12"
+nalgebra = "0.2.22"
