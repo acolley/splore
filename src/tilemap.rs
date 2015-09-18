@@ -106,7 +106,14 @@ impl<T: Default + Tile> TileMap<T> {
     // TODO: return Result<TileMap<T>> so we can propagate construction errors upwards
     // TODO: have TileMap handle its own drawing so that it can own a program and associated
     // shaders
-    pub fn new<F>(display: &F, width: usize, height: usize, tiles: Vec<T>, atlas: TextureAtlas) -> TileMap<T>
+    pub fn new<F>(
+        display: &F,
+        width: usize,
+        height: usize,
+        tile_width: u16,
+        tile_height: u16,
+        tiles: Vec<T>,
+        atlas: TextureAtlas) -> TileMap<T>
         where F: Facade {
 
         assert!(width * height == tiles.len(), "width * height does not equal length of tiles Vec");
@@ -121,10 +128,10 @@ impl<T: Default + Tile> TileMap<T> {
                 let name = tile.name();
                 let &(u1, v1, u2, v2) = atlas.get_uvs(name)
                     .expect(&format!("Could not get uvs from atlas with name `{}`", name));
-                let x1 = x as f32 * atlas.tile_width as f32;
-                let x2 = x1 + atlas.tile_width as f32;
-                let y1 = y as f32 * atlas.tile_height as f32;
-                let y2 = y1 + atlas.tile_height as f32;
+                let x1 = x as f32 * tile_width as f32;
+                let x2 = x1 + tile_width as f32;
+                let y1 = y as f32 * tile_height as f32;
+                let y2 = y1 + tile_height as f32;
                 vertices.push(Vertex { position: [x1, y1], texcoords: [u1, v1] });
                 vertices.push(Vertex { position: [x1, y2], texcoords: [u1, v2] });
                 vertices.push(Vertex { position: [x2, y2], texcoords: [u2, v2] });
@@ -168,10 +175,10 @@ impl<T: Default + Tile> TileMap<T> {
         self.tiles.iter()
     }
 
-    pub fn draw<S>(&self, surface: &mut S, viewproj: Mat4<f32>) 
+    pub fn draw<S>(&self, surface: &mut S, viewproj: &Mat4<f32>) 
         where S: Surface {
         let uniforms = uniform! {
-            matrix: viewproj,
+            matrix: viewproj.clone(),
             tex: &self.atlas.texture
         };
         surface.draw(

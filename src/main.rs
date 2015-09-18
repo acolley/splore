@@ -1,5 +1,6 @@
 #[macro_use]
 extern crate glium;
+extern crate glium_text;
 extern crate image;
 extern crate nalgebra as na;
 
@@ -66,7 +67,8 @@ struct Input {
     pub left: bool,
     pub right: bool,
     pub up: bool,
-    pub down: bool
+    pub down: bool,
+    pub activate: bool
 }
 
 fn main() {
@@ -80,10 +82,9 @@ fn main() {
 
     let mut tile_uvs = HashMap::new();
     tile_uvs.insert("grass".into(), (0.0, 0.0, 1.0, 1.0));
-    let image = image::open("resources/grass.png").unwrap();
-    let atlas_texture = CompressedSrgbTexture2d::new(&window, image).unwrap();
+    let grass = image::open("resources/grass.png").unwrap();
+    let atlas_texture = CompressedSrgbTexture2d::new(&window, grass).unwrap();
     let atlas = TextureAtlas::new(
-        16, 16,
         atlas_texture,
         tile_uvs);
     let mut tiles = Vec::new();
@@ -94,39 +95,33 @@ fn main() {
     }
     let tilemap = TileMap::new(
         &window,
-        10,
-        10,
+        10, 10,
+        16, 16,
         tiles,
         atlas
     );
 
     let (width, height) = (640.0, 480.0);
-    let proj = Ortho3::new(width, height, -1.0, 1.0);
+    let proj = Ortho3::new(width * 2.0, height * 2.0, -1.0, 1.0);
     let mut view = Iso3::new(na::zero(), na::zero());
-    // let mut focus = Pnt2::new(width / 2.0, height / 2.0);
-    let mut focus = Pnt2::new(0.0, 0.0);
+    let mut focus = Pnt2::new(width / 2.0, height / 2.0);
+    // let mut focus = Pnt2::new(0.0, 0.0);
 
-    let mut input = Input { left: false, right: false, up: false, down: false };
+    let mut input = Input {
+        left: false,
+        right: false,
+        up: false,
+        down: false,
+        activate: false
+    };
 
     'main: loop {
         view.look_at_z(&Pnt3::new(-focus.x, focus.y, 1.0), &Pnt3::new(-focus.x, focus.y, 0.0), &Vec3::y());
         let viewproj = proj.to_mat() * na::inv(&view.to_homogeneous()).unwrap();
 
-        let tex = &tilemap.atlas.texture;
-        let uniforms = uniform! {
-            matrix: viewproj,
-            tex: tex
-        };
-
         let mut frame = window.draw();
         frame.clear_color(0.0, 0.0, 0.0, 0.0);
-        // frame.draw(
-        //     &tilemap.vertex_buffer,
-        //     &tilemap.index_buffer,
-        //     &program,
-        //     &uniforms,
-        //     &Default::default()).unwrap();
-        tilemap.draw(&mut frame, viewproj);
+        tilemap.draw(&mut frame, &viewproj);
         frame.finish().unwrap();
 
         let speed = 3.0;

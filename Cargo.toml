@@ -4,6 +4,18 @@ version = "0.1.0"
 authors = ["acolley <alnessy@hotmail.com>"]
 
 [dependencies]
+clap = "1.*.*"
 glium = "0.8.7"
+glium_text = "0.5.1"
 image = "0.3.12"
 nalgebra = "0.2.22"
+serde_json = "0.*.*"
+texture_packer = "0.0.1"
+
+[[bin]]
+name = "splore"
+path = "src/main.rs"
+
+[[bin]]
+name = "pack"
+path = "src/bin/pack.rs"
