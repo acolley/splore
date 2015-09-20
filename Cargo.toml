@@ -9,8 +9,9 @@ glium = "0.8.7"
 glium_text = "0.5.1"
 image = "0.3.12"
 nalgebra = "0.2.22"
+serde = "0.*.*"
 serde_json = "0.*.*"
-texture_packer = "0.0.1"
+texture_packer = "0.*.*"
 
 [[bin]]
 name = "splore"

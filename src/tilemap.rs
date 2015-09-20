@@ -2,6 +2,7 @@
 use glium::{IndexBuffer, Program, Surface, VertexBuffer};
 use glium::backend::Facade;
 use glium::index::PrimitiveType;
+use glium::uniforms::{MagnifySamplerFilter, MinifySamplerFilter};
 use na::{Mat4};
 
 use textureatlas::TextureAtlas;
@@ -126,16 +127,16 @@ impl<T: Default + Tile> TileMap<T> {
                 let tile = tiles.get(tile_index)
                     .expect(&format!("No tile found at index `{}`", tile_index));
                 let name = tile.name();
-                let &(u1, v1, u2, v2) = atlas.get_uvs(name)
-                    .expect(&format!("Could not get uvs from atlas with name `{}`", name));
+                let frame = atlas.get_frame(name)
+                    .expect(&format!("Could not get frame from atlas with name `{}`", name));
                 let x1 = x as f32 * tile_width as f32;
                 let x2 = x1 + tile_width as f32;
                 let y1 = y as f32 * tile_height as f32;
                 let y2 = y1 + tile_height as f32;
-                vertices.push(Vertex { position: [x1, y1], texcoords: [u1, v1] });
-                vertices.push(Vertex { position: [x1, y2], texcoords: [u1, v2] });
-                vertices.push(Vertex { position: [x2, y2], texcoords: [u2, v2] });
-                vertices.push(Vertex { position: [x2, y1], texcoords: [u2, v1] });
+                vertices.push(Vertex { position: [x1, y1], texcoords: [frame.u1, frame.v1] });
+                vertices.push(Vertex { position: [x1, y2], texcoords: [frame.u1, frame.v2] });
+                vertices.push(Vertex { position: [x2, y2], texcoords: [frame.u2, frame.v2] });
+                vertices.push(Vertex { position: [x2, y1], texcoords: [frame.u2, frame.v1] });
                 let index = get_index(x as u16, y as u16, width as u16);
                 // first triangle
                 indices.push(index + 1);
@@ -177,9 +178,12 @@ impl<T: Default + Tile> TileMap<T> {
 
     pub fn draw<S>(&self, surface: &mut S, viewproj: &Mat4<f32>) 
         where S: Surface {
+        let sampled_texture = self.atlas.texture.sampled()
+            .minify_filter(MinifySamplerFilter::Nearest)
+            .magnify_filter(MagnifySamplerFilter::Nearest);
         let uniforms = uniform! {
             matrix: viewproj.clone(),
-            tex: &self.atlas.texture
+            tex: sampled_texture
         };
         surface.draw(
             &self.vertex_buffer,

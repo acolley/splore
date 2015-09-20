@@ -3,6 +3,7 @@ extern crate glium;
 extern crate glium_text;
 extern crate image;
 extern crate nalgebra as na;
+extern crate serde_json;
 
 use std::collections::HashMap;
 use std::default::Default;
@@ -19,7 +20,7 @@ use glium::texture::{CompressedSrgbTexture2d};
 use na::{Iso3, Ortho3, Pnt2, Pnt3, Vec3};
 use na::{ToHomogeneous};
 
-use textureatlas::TextureAtlas;
+use textureatlas::{Frame, TextureAtlas};
 use tilemap::{Tile, TileMap};
 
 mod textureatlas;
@@ -80,17 +81,26 @@ fn main() {
         .build_glium()
         .unwrap();
 
-    let mut tile_uvs = HashMap::new();
-    tile_uvs.insert("grass".into(), (0.0, 0.0, 1.0, 1.0));
-    let grass = image::open("resources/grass.png").unwrap();
-    let atlas_texture = CompressedSrgbTexture2d::new(&window, grass).unwrap();
-    let atlas = TextureAtlas::new(
-        atlas_texture,
-        tile_uvs);
+    // let mut tile_uvs = HashMap::new();
+    // tile_uvs.insert("grass".into(), Frame { u1: 0.0, v1: 0.0, u2: 1.0, v2: 1.0 });
+    // let grass = image::open("resources/grass.png").unwrap();
+    // let atlas_texture = CompressedSrgbTexture2d::new(&window, grass).unwrap();
+    // let atlas = TextureAtlas::new(
+    //     atlas_texture,
+    //     tile_uvs);
+    let atlas = TextureAtlas::from_packed(
+        "resources/overground.png",
+        "resources/overground.json",
+        &window);
     let mut tiles = Vec::new();
-    for _ in 0..10 {
-        for _ in 0..10 {
+    for x in 0..10 {
+        for y in 0..10 {
             tiles.push(OvergroundTile::Grass);
+            // if (x + y) % 2 == 0 { 
+            //     tiles.push(OvergroundTile::Grass);
+            // } else {
+            //     tiles.push(OvergroundTile::Dirt);
+            // }
         }
     }
     let tilemap = TileMap::new(
@@ -102,7 +112,8 @@ fn main() {
     );
 
     let (width, height) = (640.0, 480.0);
-    let proj = Ortho3::new(width * 2.0, height * 2.0, -1.0, 1.0);
+    // let proj = Ortho3::new(width * 2.0, height * 2.0, -1.0, 1.0);
+    let proj = Ortho3::new(width, height, -1.0, 1.0);
     let mut view = Iso3::new(na::zero(), na::zero());
     let mut focus = Pnt2::new(width / 2.0, height / 2.0);
     // let mut focus = Pnt2::new(0.0, 0.0);
