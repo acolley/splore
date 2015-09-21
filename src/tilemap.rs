@@ -1,5 +1,14 @@
 
-use glium::{IndexBuffer, Program, Surface, VertexBuffer};
+use glium;
+use glium::{
+    Blend,
+    Depth,
+    DrawParameters,
+    IndexBuffer,
+    Program,
+    Surface,
+    VertexBuffer
+};
 use glium::backend::Facade;
 use glium::index::PrimitiveType;
 use glium::uniforms::{MagnifySamplerFilter, MinifySamplerFilter};
@@ -185,12 +194,19 @@ impl<T: Default + Tile> TileMap<T> {
             matrix: viewproj.clone(),
             tex: sampled_texture
         };
+        let mut params = DrawParameters::default();
+        params.blend = Blend::alpha_blending();
+        params.depth = Depth {
+            test: glium::DepthTest::IfLessOrEqual,
+            write: true,
+            .. Default::default()
+        };
         surface.draw(
             &self.vertex_buffer,
             &self.index_buffer,
             &self.program,
             &uniforms,
-            &Default::default()).unwrap();
+            &params).unwrap();
     }
 }
 

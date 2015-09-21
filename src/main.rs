@@ -119,6 +119,8 @@ fn main() {
         &window);
     let mut scene = Scene::new(&window, spritesheet);
     scene.add_sprite("player", &["player"]);
+    scene.add_sprite("player2", &["player"]);
+    scene.with_sprite_mut("player2", |x| x.set_position(32.0, 32.0));
 
     let (width, height) = (640.0, 480.0);
     let proj = Ortho3::new(width * 2.0, height * 2.0, -1.0, 1.0);
@@ -140,7 +142,7 @@ fn main() {
         let viewproj = proj.to_mat() * na::inv(&view.to_homogeneous()).unwrap();
 
         let mut frame = window.draw();
-        frame.clear_color(0.0, 0.0, 0.0, 0.0);
+        frame.clear_color_and_depth((0.0, 0.0, 0.0, 0.0), 1.0);
         tilemap.draw(&mut frame, &viewproj);
         scene.draw(&mut frame, &viewproj);
         frame.finish().unwrap();

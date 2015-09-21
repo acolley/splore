@@ -3,7 +3,16 @@ use std::collections::HashMap;
 use std::mem;
 use std::ops::Deref;
 
-use glium::{Blend, DrawParameters, IndexBuffer, Program, Surface, VertexBuffer};
+use glium;
+use glium::{
+    Blend,
+    Depth,
+    DrawParameters,
+    IndexBuffer,
+    Program,
+    Surface,
+    VertexBuffer
+};
 use glium::backend::Facade;
 use glium::buffer::BufferSlice;
 use glium::index::PrimitiveType;
@@ -24,6 +33,7 @@ implement_vertex!(Vertex, position, texcoords);
 pub struct Sprite {
     position: Pnt3<f32>,
     frames: Vec<Frame>,
+    animate_speed: Option<f32>
 }
 
 impl Sprite {
@@ -164,6 +174,11 @@ impl<F: Facade + Clone> Scene<F> {
             .expect("Could not take a slice of IndexBuffer");
         let mut params = DrawParameters::default();
         params.blend = Blend::alpha_blending();
+        params.depth = Depth {
+            test: glium::DepthTest::IfLessOrEqual,
+            write: true,
+            .. Default::default()
+        };
         surface.draw(
             vertex_slice,
             index_slice,
@@ -241,7 +256,7 @@ impl<F: Facade + Clone> Scene<F> {
                 Vertex { position: [0.0, 0.0, 0.0], texcoords: [frame.u1, frame.v1] },
                 Vertex { position: [0.0, 16.0, 0.0], texcoords: [frame.u1, frame.v2] },
                 Vertex { position: [16.0, 16.0, 0.0], texcoords: [frame.u2, frame.v2] },
-                Vertex { position: [16.0, 0.0, 0.0], texcoords: [frame.u2, frame.v1] }
+                Vertex { position: [16.0, 0.0, 0.0], texcoords: [frame.u2, frame.v1] },
             ]);
             let index_slice = self.index_buffer
                 .slice(ioffset..ioffset + 6)
@@ -249,24 +264,37 @@ impl<F: Facade + Clone> Scene<F> {
             let index = (self.sprites.len() * 4) as u16;
             index_slice.write(&[
                 index + 1, index + 2, index,
-                index + 2, index, index + 3 
+                index + 2, index, index + 3,
             ]);
         }
 
         let sprite = Sprite {
             position : Pnt3::new(0.0, 0.0, 0.0),
-            frames : frames
+            frames : frames,
+            animate_speed : None,
         };
         self.sprites.insert(name.to_string(), sprite);
     }
 
     #[inline]
-    pub fn get_sprite<S: AsRef<str>>(&self, name: S) -> Option<&Sprite> {
-        self.sprites.get(name.as_ref())
+    pub fn get_sprite(&self, name: &str) -> Option<&Sprite> {
+        self.sprites.get(name)
     }
 
     #[inline]
-    pub fn get_sprite_mut<S: AsRef<str>>(&mut self, name: S) -> Option<&mut Sprite> {
-        self.sprites.get_mut(name.as_ref())
+    pub fn get_sprite_mut(&mut self, name: &str) -> Option<&mut Sprite> {
+        self.sprites.get_mut(name)
     }
+
+    pub fn with_sprite<T>(&self, name: &str, f: T)
+        where T: Fn(&Sprite) {
+        self.sprites.get(name).map(f);
+    }
+
+    pub fn with_sprite_mut<T>(&mut self, name: &str, f: T)
+        where T: FnMut(&mut Sprite) {
+        self.sprites.get_mut(name).map(f);
+    }
+
+    // TODO: add iterator over all Sprites
 }
