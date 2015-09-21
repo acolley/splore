@@ -136,7 +136,7 @@ fn main() {
     };
 
     'main: loop {
-        view.look_at_z(&Pnt3::new(-focus.x, focus.y, 1.0), &Pnt3::new(-focus.x, focus.y, 0.0), &Vec3::y());
+        view.look_at_z(&Pnt3::new(focus.x, focus.y, -1.0), &Pnt3::new(focus.x, focus.y, 0.0), &Vec3::y());
         let viewproj = proj.to_mat() * na::inv(&view.to_homogeneous()).unwrap();
 
         let mut frame = window.draw();
