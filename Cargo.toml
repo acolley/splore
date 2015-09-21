@@ -5,7 +5,7 @@ authors = ["acolley <alnessy@hotmail.com>"]
 
 [dependencies]
 clap = "1.4.0"
-glium = "0.8.7"
+glium = "0.9.0"
 glium_text = "0.5.1"
 image = "0.3.12"
 nalgebra = "0.2.22"

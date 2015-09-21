@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::mem;
 use std::ops::Deref;
 
-use glium::{IndexBuffer, Program, Surface, VertexBuffer};
+use glium::{Blend, DrawParameters, IndexBuffer, Program, Surface, VertexBuffer};
 use glium::backend::Facade;
 use glium::buffer::BufferSlice;
 use glium::index::PrimitiveType;
@@ -162,12 +162,14 @@ impl<F: Facade + Clone> Scene<F> {
         let index_slice = self.index_buffer
             .slice(0..self.sprites.len() * 6 * mem::size_of::<u16>())
             .expect("Could not take a slice of IndexBuffer");
+        let mut params = DrawParameters::default();
+        params.blend = Blend::alpha_blending();
         surface.draw(
             vertex_slice,
             index_slice,
             &self.program,
             &uniforms,
-            &Default::default()).unwrap();
+            &params).unwrap();
     }
 
     /// Extend the Vertex/Index buffers to double
