@@ -12,6 +12,7 @@ use serde_json::value::Value;
 
 /// A single frame of the TextureAtlas
 /// represented in texture space coordinates.
+#[derive(Copy, Clone)]
 pub struct Frame {
     pub u1: f32,
     pub v1: f32,
@@ -85,8 +86,12 @@ impl TextureAtlas {
     }
 
     /// Create a TextureAtlas from a collection of images.
+    ///
     /// This constructor will load the files itself and
-    /// then combine them into one texture.
+    /// then combine them into one texture. Useful as part of
+    /// an initial quick development period but much more
+    /// inefficient than pre-processing the combined texture
+    /// and loading it in later using `from_packed`.
     // pub fn pack<P: AsRef<Path>>(&self, paths: &[P]) -> TextureAtlas {
 
     // }

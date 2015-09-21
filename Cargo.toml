@@ -4,7 +4,7 @@ version = "0.1.0"
 authors = ["acolley <alnessy@hotmail.com>"]
 
 [dependencies]
-clap = "1.*.*"
+clap = "1.4.0"
 glium = "0.8.7"
 glium_text = "0.5.1"
 image = "0.3.12"

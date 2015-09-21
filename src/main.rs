@@ -20,9 +20,11 @@ use glium::texture::{CompressedSrgbTexture2d};
 use na::{Iso3, Ortho3, Pnt2, Pnt3, Vec3};
 use na::{ToHomogeneous};
 
+use scene::{Scene};
 use textureatlas::{Frame, TextureAtlas};
 use tilemap::{Tile, TileMap};
 
+mod scene;
 mod textureatlas;
 mod tilemap;
 
@@ -111,9 +113,16 @@ fn main() {
         atlas
     );
 
+    let spritesheet = TextureAtlas::from_packed(
+        "resources/spritesheet.png",
+        "resources/spritesheet.json",
+        &window);
+    let mut scene = Scene::new(&window, spritesheet);
+    scene.add_sprite("player", &["player"]);
+
     let (width, height) = (640.0, 480.0);
-    // let proj = Ortho3::new(width * 2.0, height * 2.0, -1.0, 1.0);
-    let proj = Ortho3::new(width, height, -1.0, 1.0);
+    let proj = Ortho3::new(width * 2.0, height * 2.0, -1.0, 1.0);
+    // let proj = Ortho3::new(width, height, -1.0, 1.0);
     let mut view = Iso3::new(na::zero(), na::zero());
     let mut focus = Pnt2::new(width / 2.0, height / 2.0);
     // let mut focus = Pnt2::new(0.0, 0.0);
@@ -133,6 +142,7 @@ fn main() {
         let mut frame = window.draw();
         frame.clear_color(0.0, 0.0, 0.0, 0.0);
         tilemap.draw(&mut frame, &viewproj);
+        scene.draw(&mut frame, &viewproj);
         frame.finish().unwrap();
 
         let speed = 3.0;
@@ -162,7 +172,4 @@ fn main() {
             focus.y -= speed;
         }
     }
-
-    // let mut map: Map<Tile> = Map::new(10, 10);
-    // *map.get_mut(1, 1).unwrap() = Tile::Grass;
 }

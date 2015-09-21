@@ -33,15 +33,21 @@ fn main() {
             .long("border")
             .takes_value(true)
             .required(false))
+        .arg(Arg::with_name("TRIM")
+            .short("t")
+            .long("trim")
+            .required(false))
         .get_matches();
 
     let paths = matches.values_of("TEXTURES").expect("No textures given.");
     let output = matches.value_of("OUTPUT").expect("No output path given.");
     let border = matches.value_of("BORDER").unwrap_or("0").parse::<u32>().ok().expect("Border is not a u32.");
+    let trim = matches.is_present("TRIM");
 
     let mut cfg = TexturePackerConfig::default();
     cfg.allow_rotation = false;
     cfg.border_padding = border;
+    cfg.trim = trim;
 
     let mut packer = TexturePacker::new_skyline(cfg);
     for path in paths.iter().map(|x| Path::new(x)) {
@@ -59,7 +65,7 @@ fn main() {
     let mut json = BTreeMap::new();
     let mut frames = BTreeMap::new();
     for (name, frame) in packer.get_frames().iter() {
-        frames.insert(name, (frame.frame.x, frame.frame.y, frame.source.w, frame.source.h));
+        frames.insert(name, (frame.frame.x, frame.frame.y, frame.frame.w, frame.frame.h));
     }
     json.insert("frames", to_value(&frames));
     let json = to_value(&json);
