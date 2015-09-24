@@ -118,8 +118,8 @@ fn main() {
         "resources/spritesheet.json",
         &window);
     let mut scene = Scene::new(&window, spritesheet);
-    scene.add_sprite("player", &["player"]);
-    scene.add_sprite("player2", &["player"]);
+    scene.add_sprite("player", "player");
+    scene.add_sprite("player2", "player");
     scene.with_sprite_mut("player2", |x| x.set_position(32.0, 32.0));
 
     let (width, height) = (640.0, 480.0);

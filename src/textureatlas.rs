@@ -17,7 +17,9 @@ pub struct Frame {
     pub u1: f32,
     pub v1: f32,
     pub u2: f32,
-    pub v2: f32
+    pub v2: f32,
+    pub w: f32, // width in pixels
+    pub h: f32, // height in pixels
 }
 
 /// The TextureAtlas is a struct that encapsulates
@@ -78,7 +80,9 @@ impl TextureAtlas {
                 u1: x as f32 / texture.get_width() as f32,
                 v1: y as f32 / texture.get_height().unwrap() as f32,
                 u2: ((x + w) / texture.get_width() as f64) as f32,
-                v2: ((y + h) / texture.get_height().unwrap() as f64) as f32
+                v2: ((y + h) / texture.get_height().unwrap() as f64) as f32,
+                w: w as f32,
+                h: h as f32
             };
             tiles.insert(name.clone(), frame);
         }

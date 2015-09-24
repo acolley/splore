@@ -30,26 +30,61 @@ struct Vertex {
 
 implement_vertex!(Vertex, position, texcoords);
 
-pub struct Sprite {
-    position: Pnt3<f32>,
-    frames: Vec<Frame>,
-    animate_speed: Option<f32>
+pub enum Sprite {
+    Static {
+        position: Pnt3<f32>,
+        frame: Frame,
+    },
+    Animated {
+        position: Pnt3<f32>,
+        frames: Vec<Frame>,
+        fps: f32,
+        current_frame: usize,
+    }
 }
 
 impl Sprite {
     #[inline]
+    pub fn get_current_frame(&self) -> &Frame {
+        match *self {
+            Sprite::Static { ref frame, .. } => frame,
+            Sprite::Animated { ref frames, current_frame, .. } => {
+                frames.get(current_frame)
+                    .expect(&format!("Not a valid frame index: `{}`", current_frame))
+            },
+        }
+    }
+
+    #[inline]
+    pub fn get_position(&self) -> &Pnt3<f32> {
+        match *self {
+            Sprite::Static { ref position, .. } => position,
+            Sprite::Animated { ref position, .. } => position
+        }
+    }
+
+    #[inline]
     pub fn set_position(&mut self, x: f32, y: f32) {
-        self.position.x = x;
-        self.position.y = y;
+        let mut position = match *self {
+            Sprite::Static { ref mut position, .. } => position,
+            Sprite::Animated { ref mut position, .. } => position,
+        };
+        position.x = x;
+        position.y = y;
     }
 
     #[inline]
     pub fn set_position_z(&mut self, z: f32) {
-        self.position.z = z;
+        let mut position = match *self {
+            Sprite::Static { ref mut position, .. } => position,
+            Sprite::Animated { ref mut position, .. } => position,
+        };
+        position.z = z;
     }
 }
 
 pub struct Scene<F> {
+    capacity: usize,
     texture: TextureAtlas,
     sprites: HashMap<String, Sprite>,
     program: Program,
@@ -86,52 +121,6 @@ fn get_program<F>(display: &F) -> Program
                 }
             "
         },
-
-        110 => {  
-            vertex: "
-                #version 110
-                uniform mat4 matrix;
-                attribute vec3 position;
-                attribute vec2 texcoords;
-                varying vec2 v_texcoords;
-                void main() {
-                    gl_Position = matrix * vec4(position, 1.0);
-                    v_texcoords = texcoords;
-                }
-            ",
-
-            fragment: "
-                #version 110
-                uniform sampler2D tex;
-                varying vec2 v_texcoords;
-                void main() {
-                    gl_FragColor = texture2D(tex, v_texcoords);
-                }
-            ",
-        },
-
-        100 => {  
-            vertex: "
-                #version 100
-                uniform lowp mat4 matrix;
-                attribute lowp vec3 position;
-                attribute lowp vec2 texcoords;
-                varying lowp vec2 v_texcoords;
-                void main() {
-                    gl_Position = matrix * vec4(position, 1.0);
-                    v_texcoords = texcoords;
-                }
-            ",
-
-            fragment: "
-                #version 100
-                uniform lowp sampler2D tex;
-                varying lowp vec2 v_texcoords;
-                void main() {
-                    gl_FragColor = texture2D(tex, v_texcoords);
-                }
-            ",
-        },
     ).unwrap()
 }
 
@@ -142,14 +131,15 @@ impl<F: Facade + Clone> Scene<F> {
 
     pub fn with_capacity(display: &F, texture: TextureAtlas, n: usize) -> Scene<F> {
         Scene {
-            texture : texture,
-            sprites : HashMap::new(),
-            program : get_program(display),
-            vertex_buffer : VertexBuffer::empty_dynamic(display, 4 * n)
+            capacity: n,
+            texture: texture,
+            sprites: HashMap::with_capacity(n),
+            program: get_program(display),
+            vertex_buffer: VertexBuffer::empty_dynamic(display, 4 * n)
                 .ok().expect("Could not create VertexBuffer"),
-            index_buffer : IndexBuffer::empty_dynamic(display, PrimitiveType::TrianglesList, 6 * n)
+            index_buffer: IndexBuffer::empty_dynamic(display, PrimitiveType::TrianglesList, 6 * n)
                 .ok().expect("Could not create IndexBuffer"),
-            display : display.clone()
+            display: display.clone(),
         }
     }
 
@@ -158,7 +148,51 @@ impl<F: Facade + Clone> Scene<F> {
 
     }
 
-    pub fn draw<S: Surface>(&self, surface: &mut S, viewproj: &Mat4<f32>) {
+    /// Upload the data to the GPU for drawing
+    fn upload_data(&mut self) {
+        let vstride = mem::size_of::<Vertex>();
+        let istride = mem::size_of::<u16>();
+        let voffset = 4 * self.sprites.len();
+        let ioffset = 6 * self.sprites.len();
+
+        let mut vertices = Vec::with_capacity(voffset);
+        let mut indices = Vec::with_capacity(ioffset);
+        for (i, sprite) in self.sprites.values().enumerate() {
+            let position = sprite.get_position();
+            let frame = sprite.get_current_frame();
+            let x1 = position.x;
+            let x2 = position.x + frame.w;
+            let y1 = position.y;
+            let y2 = position.y + frame.h;
+            vertices.push(Vertex { position: [x1, y1, position.z], texcoords: [frame.u1, frame.v1] });
+            vertices.push(Vertex { position: [x1, y2, position.z], texcoords: [frame.u1, frame.v2] });
+            vertices.push(Vertex { position: [x2, y2, position.z], texcoords: [frame.u2, frame.v2] });
+            vertices.push(Vertex { position: [x2, y1, position.z], texcoords: [frame.u2, frame.v1] });
+
+            let index = (i * 4) as u16;
+            indices.push(index+1);
+            indices.push(index+2);
+            indices.push(index);
+
+            indices.push(index+2);
+            indices.push(index);
+            indices.push(index+3);
+        }
+
+        let mut vertex_slice = self.vertex_buffer
+            .slice_mut(0..voffset)
+            .expect("Could not take a mutable slice of VertexBuffer");
+        let mut index_slice = self.index_buffer
+            .slice_mut(0..ioffset)
+            .expect("Could not take a mutable slice of IndexBuffer");
+
+        vertex_slice.write(&vertices);
+        index_slice.write(&indices);
+    }
+
+    pub fn draw<S: Surface>(&mut self, surface: &mut S, viewproj: &Mat4<f32>) {
+        self.upload_data();
+
         let sampled_texture = self.texture.texture.sampled()
             .minify_filter(MinifySamplerFilter::Nearest)
             .magnify_filter(MagnifySamplerFilter::Nearest);
@@ -166,12 +200,14 @@ impl<F: Facade + Clone> Scene<F> {
             matrix: viewproj.clone(),
             tex: sampled_texture
         };
+
         let vertex_slice = self.vertex_buffer
-            .slice(0..self.sprites.len() * 4 * mem::size_of::<Vertex>())
-            .expect("Could not take a slice of VertexBuffer.");
+            .slice(0..self.sprites.len() * 4)
+            .expect("Could not take a slice of VertexBuffer");
         let index_slice = self.index_buffer
-            .slice(0..self.sprites.len() * 6 * mem::size_of::<u16>())
+            .slice(0..self.sprites.len() * 6)
             .expect("Could not take a slice of IndexBuffer");
+
         let mut params = DrawParameters::default();
         params.blend = Blend::alpha_blending();
         params.depth = Depth {
@@ -189,91 +225,42 @@ impl<F: Facade + Clone> Scene<F> {
 
     /// Extend the Vertex/Index buffers to double
     /// their current capacity.
-    // TODO: return Result indicating whether extending
-    // the buffers was successful or not.
     fn extend_buffers(&mut self) {
-        let mut vertex_buffer = VertexBuffer::empty_dynamic(
-            &self.display,
-            self.sprites.len() * 2 * 4)
+        self.vertex_buffer = VertexBuffer::empty_dynamic(&self.display, 4 * self.sprites.capacity())
             .ok().expect("Could not create VertexBuffer");
-        let mut index_buffer = IndexBuffer::empty_dynamic(
-            &self.display,
-            PrimitiveType::TrianglesList,
-            self.sprites.len() * 2 * 6)
+        self.index_buffer = IndexBuffer::empty_dynamic(&self.display, PrimitiveType::TrianglesList, 6 * self.sprites.capacity())
             .ok().expect("Could not create IndexBuffer");
-        {
-            let vertex_slice = vertex_buffer
-                .deref()
-                .slice(0..self.sprites.len() * 4)
-                .expect("Could not take a slice of VertexBuffer");
-            let index_slice = index_buffer
-                .deref()
-                .slice(0..self.sprites.len() * 6)
-                .expect("Could not take a slice of IndexBuffer");
-            self.vertex_buffer.copy_to(vertex_slice);
-            self.index_buffer.copy_to(index_slice);
-        }
-        self.vertex_buffer = vertex_buffer;
-        self.index_buffer = index_buffer;
     }
 
     pub fn resize(&mut self) {}
 
     pub fn trim(&mut self) {}
 
-    // TODO: return Result indicating whether creating
-    // the Vertex- and Index-buffers was successful or not.
-    pub fn add_sprite(&mut self, name: &str, frames: &[&str]) {
-        assert!(frames.len() > 0);
-        let frames: Vec<Frame> = frames.iter()
-            .map(|x| {
-                self.texture.get_frame(x)
-                    .expect(&format!("No frame with name: {}", x))
-                    .clone()
-            })
-            .collect();
+    /// Add a static Sprite to the Scene
+    pub fn add_sprite(&mut self, name: &str, frame: &str) {
+        {
+            let frame = self.texture.get_frame(frame)
+                .expect(&format!("No frame with name: `{}`", frame));
+            let sprite = Sprite::Static {
+                position : Pnt3::new(0.0, 0.0, 0.0),
+                frame : frame.clone(),
+            };
+            self.sprites.insert(name.to_string(), sprite);
+        }
 
-        let vstride = mem::size_of::<Vertex>();
-        let istride = mem::size_of::<u16>();
-        let voffset = 4 * self.sprites.len();
-        let ioffset = 6 * self.sprites.len();
-
-        if self.vertex_buffer.get_size() < voffset * vstride {
+        if self.sprites.capacity() > self.capacity {
+            self.capacity = self.sprites.capacity();
             self.extend_buffers();
         }
+    }
 
-        // FIXME: The way this works limits this to not supporting removing
-        // Sprites from the Scene. Ideally this would be using instancing and
-        // have small Vertex and Index buffers, where each instance would have
-        // a set of texture coordinates and world transform that defines how
-        // it should be drawn.
-        {
-            let vertex_slice = self.vertex_buffer
-                .slice(voffset..voffset + 4)
-                .expect("Could not take a slice of VertexBuffer.");
-            let frame = frames[0];
-            vertex_slice.write(&[
-                Vertex { position: [0.0, 0.0, 0.0], texcoords: [frame.u1, frame.v1] },
-                Vertex { position: [0.0, 16.0, 0.0], texcoords: [frame.u1, frame.v2] },
-                Vertex { position: [16.0, 16.0, 0.0], texcoords: [frame.u2, frame.v2] },
-                Vertex { position: [16.0, 0.0, 0.0], texcoords: [frame.u2, frame.v1] },
-            ]);
-            let index_slice = self.index_buffer
-                .slice(ioffset..ioffset + 6)
-                .expect("Could not take a slice of IndexBuffer.");
-            let index = (self.sprites.len() * 4) as u16;
-            index_slice.write(&[
-                index + 1, index + 2, index,
-                index + 2, index, index + 3,
-            ]);
-        }
+    pub fn add_sprite_animated(&mut self, name: &str, frames: &[&str]) {
 
-        let sprite = Sprite {
-            position : Pnt3::new(0.0, 0.0, 0.0),
-            frames : frames,
-            animate_speed : None,
-        };
-        self.sprites.insert(name.to_string(), sprite);
+    }
+
+    #[inline]
+    pub fn remove_sprite(&mut self, name: &str) {
+
     }
 
     #[inline]
